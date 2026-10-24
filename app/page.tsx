@@ -42,7 +42,7 @@ export default function ZaynChat() {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        if (data.user) { await supabase.from("profiles").insert({ id: data.user.id, username: username || email.split("@")[0] }); alert("Account created! Check email if needed.") }
+        if (data.user) { await supabase.from("profiles").insert({ id: data.user.id, username: username || email.split("@")[0] }); alert("Account created!") }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
@@ -60,7 +60,7 @@ export default function ZaynChat() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#111b21", padding: "16px", fontFamily: "sans-serif" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#111b21", padding: "16px" }}>
         <div style={{ width: "100%", maxWidth: "400px", background: "#202c33", borderRadius: "12px", padding: "32px", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
           <div style={{ textAlign: "center", marginBottom: "24px" }}>
             <h1 style={{ fontSize: "36px", fontWeight: "bold", color: "white", margin: "0 0 8px 0" }}>ZaynChat</h1>
@@ -68,15 +68,15 @@ export default function ZaynChat() {
           </div>
           <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required
-              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px", outline: "none" }} />
+              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px" }} />
             {isSignUp && (
               <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required
-                style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px", outline: "none" }} />
+                style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px" }} />
             )}
             <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required
-              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px", outline: "none" }} />
+              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px" }} />
             <button type="submit" disabled={loading}
-              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "none", background: "#00a884", color: "white", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
+              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "none", background: "#00a884", color: "white", fontWeight: "bold", fontSize: "16px" }}>
               {loading ? "..." : isSignUp ? "Sign Up" : "Login"}
             </button>
           </form>
@@ -90,10 +90,10 @@ export default function ZaynChat() {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#111b21", fontFamily: "sans-serif" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#111b21" }}>
       <div style={{ background: "#202c33", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ color: "white", fontWeight: "bold", margin: 0 }}>ZaynChat</h2>
-        <button onClick={() => supabase.auth.signOut()} style={{ color: "#8696a0", background: "none", border: "none", cursor: "pointer" }}>Logout</button>
+        <button onClick={() => supabase.auth.signOut()} style={{ color: "#8696a0", background: "none", border: "none" }}>Logout</button>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "8px", background: "#0b141a" }}>
         {messages.map((m) => (
@@ -106,8 +106,8 @@ export default function ZaynChat() {
       </div>
       <form onSubmit={sendMessage} style={{ background: "#202c33", padding: "12px", display: "flex", gap: "8px" }}>
         <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message"
-          style={{ flex: 1, padding: "12px", borderRadius: "24px", border: "none", background: "#2a3942", color: "white", outline: "none" }} />
-        <button type="submit" style={{ background: "#00a884", border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "20px", cursor: "pointer" }}>➤</button>
+          style={{ flex: 1, padding: "12px", borderRadius: "24px", border: "none", background: "#2a3942", color: "white" }} />
+        <button type="submit" style={{ background: "#00a884", border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "20px" }}>➤</button>
       </form>
     </div>
   )
