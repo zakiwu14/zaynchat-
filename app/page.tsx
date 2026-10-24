@@ -1,112 +1,114 @@
-'use client'
-import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
+"use client"
+import { useState, useEffect, useRef } from "react"
+import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uwpobugrmnuddvyyvwj.supabase.co'
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_H3dM5N81zTwpB7OmsYUAw_S-MCIy7w'
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export default function ZaynChat() {
   const [user, setUser] = useState<any>(null)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [username, setUsername] = useState("")
+  const [isSignUp, setIsSignUp] = useState(false)
   const [messages, setMessages] = useState<any[]>([])
-  const [newMsg, setNewMsg] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [username, setUsername] = useState('')
-  const [isLogin, setIsLogin] = useState(true)
+  const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user || null))
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user || null))
-    return () => listener.subscription.unsubscribe()
+    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null))
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
+    if (!user) return
+    const fetchMessages = async () => {
+      const { data } = await supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100)
+      if (data) setMessages(data)
+    }
     fetchMessages()
-    const channel = supabase.channel('messages-channel').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      setMessages(prev => [...prev, payload.new])
+    const channel = supabase.channel("messages").on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+      setMessages((prev) => [...prev, payload.new])
     }).subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [user])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
 
-  const fetchMessages = async () => {
-    const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: true }).limit(100)
-    if (data) setMessages(data)
-  }
-
-  const handleAuth = async () => {
-    if (!email || !password) return alert('Enter email & password')
-    setLoading(true)
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true)
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-      } else {
-        if (!username) return alert('Enter username')
+      if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        if (data.user) await supabase.from('profiles').insert({ id: data.user.id, username })
+        if (data.user) { await supabase.from("profiles").insert({ id: data.user.id, username: username || email.split("@")[0] }); alert("Account created! Check email if needed.") }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
       }
-    } catch (e: any) { alert(e.message) } finally { setLoading(false) }
+    } catch (err: any) { alert(err.message) } finally { setLoading(false) }
   }
 
-  const sendMessage = async () => {
-    if (!newMsg.trim() || !user) return
-    const name = user.email?.split('@')[0] || username || 'User'
-    await supabase.from('messages').insert({ user_id: user.id, username: name, content: newMsg })
-    setNewMsg('')
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMessage.trim() || !user) return
+    const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).single()
+    await supabase.from("messages").insert({ content: newMessage, user_id: user.id, username: profile?.username || user.email?.split("@")[0] })
+    setNewMessage("")
   }
-
-  const signOut = async () => { await supabase.auth.signOut(); setUser(null) }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#111b21] flex items-center justify-center p-4">
-        <div className="bg-[#202c33] p-8 rounded-lg w-full max-w-sm">
-          <h1 className="text-white text-3xl font-bold text-center mb-2">ZaynChat</h1>
-          <p className="text-[#8696a0] text-center mb-6 text-sm">Real-time messenger</p>
-          {!isLogin && <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" className="w-full bg-[#2a3942] text-white p-3 rounded mb-3 outline-none" />}
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="w-full bg-[#2a3942] text-white p-3 rounded mb-3 outline-none" />
-          <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" className="w-full bg-[#2a3942] text-white p-3 rounded mb-4 outline-none" />
-          <button onClick={handleAuth} disabled={loading} className="w-full bg-[#00a884] text-white p-3 rounded font-bold">{loading ? '...' : isLogin ? 'Login' : 'Sign Up'}</button>
-          <p className="text-[#8696a0] text-center mt-4 text-sm cursor-pointer" onClick={() => setIsLogin(!isLogin)}>{isLogin ? "No account? Sign Up" : "Have account? Login"}</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#111b21", padding: "16px", fontFamily: "sans-serif" }}>
+        <div style={{ width: "100%", maxWidth: "400px", background: "#202c33", borderRadius: "12px", padding: "32px", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <h1 style={{ fontSize: "36px", fontWeight: "bold", color: "white", margin: "0 0 8px 0" }}>ZaynChat</h1>
+            <p style={{ color: "#8696a0", margin: 0 }}>Real-time messenger</p>
+          </div>
+          <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required
+              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px", outline: "none" }} />
+            {isSignUp && (
+              <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required
+                style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px", outline: "none" }} />
+            )}
+            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required
+              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "1px solid #2a3942", background: "#2a3942", color: "white", fontSize: "16px", outline: "none" }} />
+            <button type="submit" disabled={loading}
+              style={{ width: "100%", padding: "14px", borderRadius: "8px", border: "none", background: "#00a884", color: "white", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
+              {loading ? "..." : isSignUp ? "Sign Up" : "Login"}
+            </button>
+          </form>
+          <p style={{ textAlign: "center", color: "#8696a0", marginTop: "20px", fontSize: "14px" }}>
+            {isSignUp ? "Have account? " : "No account? "}
+            <span onClick={() => setIsSignUp(!isSignUp)} style={{ color: "#00a884", cursor: "pointer", fontWeight: "bold" }}>{isSignUp ? "Login" : "Sign Up"}</span>
+          </p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen bg-[#111b21] flex flex-col">
-      <div className="bg-[#202c33] p-4 flex justify-between items-center">
-        <h1 className="text-white font-bold text-xl">ZaynChat 💬</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-[#8696a0] text-sm">{user.email}</span>
-          <button onClick={signOut} className="text-[#8696a0] text-sm">Logout</button>
-        </div>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#111b21", fontFamily: "sans-serif" }}>
+      <div style={{ background: "#202c33", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ color: "white", fontWeight: "bold", margin: 0 }}>ZaynChat</h2>
+        <button onClick={() => supabase.auth.signOut()} style={{ color: "#8696a0", background: "none", border: "none", cursor: "pointer" }}>Logout</button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#0b141a]" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')" }}>
-        {messages.map((m) => {
-          const isMe = m.user_id === user.id
-          return (
-            <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] rounded-lg p-3 ${isMe ? 'bg-[#005c4b] text-white' : 'bg-[#202c33] text-white'}`}>
-                {!isMe && <p className="text-[#53bdeb] text-xs font-bold">{m.username}</p>}
-                <p className="text-sm">{m.content}</p>
-                <p className="text-[10px] opacity-60 text-right mt-1">{new Date(m.created_at).toLocaleTimeString()}</p>
-              </div>
-            </div>
-          )
-        })}
-        <div ref={bottomRef} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "8px", background: "#0b141a" }}>
+        {messages.map((m) => (
+          <div key={m.id} style={{ alignSelf: m.user_id === user.id ? "flex-end" : "flex-start", background: m.user_id === user.id ? "#005c4b" : "#202c33", color: "white", padding: "8px 12px", borderRadius: "8px", maxWidth: "70%" }}>
+            <div style={{ fontSize: "12px", color: "#00a884", fontWeight: "bold" }}>{m.username}</div>
+            <div>{m.content}</div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
       </div>
-      <div className="bg-[#202c33] p-3 flex gap-2">
-        <input value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Type a message" className="flex-1 bg-[#2a3942] text-white p-3 rounded-full outline-none" />
-        <button onClick={sendMessage} className="bg-[#00a884] text-white w-12 h-12 rounded-full font-bold">➤</button>
-      </div>
+      <form onSubmit={sendMessage} style={{ background: "#202c33", padding: "12px", display: "flex", gap: "8px" }}>
+        <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message"
+          style={{ flex: 1, padding: "12px", borderRadius: "24px", border: "none", background: "#2a3942", color: "white", outline: "none" }} />
+        <button type="submit" style={{ background: "#00a884", border: "none", borderRadius: "50%", width: "48px", height: "48px", color: "white", fontSize: "20px", cursor: "pointer" }}>➤</button>
+      </form>
     </div>
   )
 }
